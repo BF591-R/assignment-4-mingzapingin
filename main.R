@@ -13,7 +13,8 @@ library('RColorBrewer')
 #'
 #' @examples
 read_data <- function(intensity_data, delimiter) {
-    return(NULL)
+    df <- read.table(intensity_data, header = TRUE, sep = delimiter)
+    return(df)
 }
 
 #' Define a function to calculate the proportion of variance explained by each PC
@@ -25,7 +26,9 @@ read_data <- function(intensity_data, delimiter) {
 #'
 #' @examples
 calculate_variance_explained <- function(pca_results) {
-    return(NULL)
+    variances <- pca_results$sdev^2
+    prop_var <- variances / sum(variances)
+    return(prop_var)
 }
 
 #' Define a function that takes in the variance values and the PCA results to
@@ -43,7 +46,14 @@ calculate_variance_explained <- function(pca_results) {
 #' @export
 #' @examples 
 make_variance_tibble <- function(pca_ve, pca_results) {
-    return(NULL)
+    pcs <- colnames(pca_results$rotation)[seq_along(pca_ve)]
+    
+    pca_tibble <- tibble(
+      principal_components = pcs,
+      variance_explained   = pca_ve,
+      cumulative           = cumsum(pca_ve)
+    )
+    return(pca_tibble)
 }
 
 
@@ -60,7 +70,29 @@ make_variance_tibble <- function(pca_ve, pca_results) {
 #'
 #' @examples
 make_biplot <- function(metadata, pca_results) {
-    return(NULL)
+
+    scores <- as.data.frame(pca_results$x[, c("PC1", "PC2"), drop = FALSE])
+    scores$sample_id <- rownames(scores)
+    scores <- tibble::as_tibble(scores)
+    
+
+    candidates <- c("sample_id", "geo_accession", "GSM", "Sample", "sample", "ID", "id")
+    join_col <- NULL
+    for (nm in candidates) {
+      if (nm %in% names(md) && any(md[[nm]] %in% scores$sample_id)) {
+        join_col <- nm
+        break
+      }
+    }
+    
+    df <- score %>%
+      left_join(scores, md, by = c("sample_id" = join_col))
+
+    plot <- ggplot(df, aes(x = PC1, y = PC2, color = SixSubTypesClassification)) +
+      geom_point() +
+      labs(x = "PC1", y = "PC2", color = "SixSubTypesClassification")
+
+    return(plot)
 }
 
 #' Define a function to return a list of probeids filtered by signifiance
@@ -74,7 +106,12 @@ make_biplot <- function(metadata, pca_results) {
 #'
 #' @examples
 list_significant_probes <- function(diff_exp_tibble, fdr_threshold) {
-    return(NULL)
+    sig <- diff_exp_tibble %>%
+      filter(!is.na(padj), padj < fdr_threshold) %>%
+      pull(probeid)
+      
+    as.list(sig)
+    return(sig)
 }
 
 #' Define a function that uses the list of significant probeids to return a
@@ -91,7 +128,13 @@ list_significant_probes <- function(diff_exp_tibble, fdr_threshold) {
 #'
 #' @examples
 return_de_intensity <- function(intensity, sig_ids_list) {
-    return(NULL)
+
+    sig_ids <- unlist(sig_ids_list)
+  
+    keep <- intersect(sig_ids, rownames(intensity))
+    
+    demat <- as.matrix(intensity[keep, , drop = FALSE])
+    return(demat)
 }
 
 #' Define a function that takes the intensity values for significant probes and
@@ -109,6 +152,13 @@ return_de_intensity <- function(intensity, sig_ids_list) {
 #'
 #' @examples
 plot_heatmap <- function(de_intensity, num_colors, palette) {
-    return(NULL)
+    
+    cols <- brewer.pal(num_colors, palette)
+    
+    heatmap <- heatmap(
+      de_intensity,
+      col = cols
+    )
+    return(heatmap)
 }
 
